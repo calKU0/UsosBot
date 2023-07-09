@@ -1,0 +1,58 @@
+import discord
+from discord import app_commands
+from discord.ext import commands
+import oauth2 as oauth
+from urllib.parse import parse_qs
+import sys
+sys.path.append(".")
+import keys
+
+class register(commands.Cog):
+    def __init__(self, bot:commands.Bot):
+         self.bot = bot
+
+    @app_commands.command(name="register", description="Sign up to your usos")
+    async def register(self,interaction: discord.Interaction):
+        consumer = oauth.Consumer(keys.secrets("consumer_key"), keys.secrets("CONSUMER_SECRET"))
+        usosapi_base_url = 'https://appsusos.uek.krakow.pl/'
+        request_token_url = usosapi_base_url + 'services/oauth/request_token?scopes=studies|offline_access&oauth_callback=oob'
+        authorize_url = usosapi_base_url + 'services/oauth/authorize'
+        access_token_url = usosapi_base_url + 'services/oauth/access_token'
+
+        # Requesting a token
+        client = oauth.Client(consumer)
+        resp, content = client.request(request_token_url, "GET")
+        if resp['status'] != '200':
+            raise Exception("Invalid response %s:\n%s" % (resp['status'], content))
+        def _read_token(content):
+            content_str = content.decode()
+            arr = parse_qs(content_str)
+            arr = {key: value[0] for key, value in arr.items()}
+            return oauth.Token(arr['oauth_token'], arr['oauth_token_secret'])
+        request_token = _read_token(content)
+
+        # Hop on dms :)
+        embed = discord.Embed(title="Rejestracja w USOS")
+        embed.add_field(name="1. Aby korzystać z tego bota musisz przyznać mu prawa na usosie. Aby to zrobić wejdź w link:", value="%s?oauth_token=%s" % (authorize_url, request_token.key), inline=False)
+        embed.add_field(name="2. Kliknij przyznaj dostęp", value="", inline=False)
+        embed.add_field(name="3. Skopiuj PIN, który ci się wyświetli i wklej go w odpowiedzi poniżej", value="", inline=False)
+        await interaction.user.send(embed=embed)
+
+        pin = await self.bot.wait_for("message", timeout=30)
+        #await interaction.user.send(f"Twoj kod pin to: {pin.content}")
+        #await interaction.response.send_message(" Wejdź na stronę%s?oauth_token=%s" % (authorize_url, request_token.key))
+          
+
+async def setup(bot):
+    await bot.add_cog(register(bot))
+
+"""
+        TODO:
+        1. Ogarnąć czy pin jest stały
+            a) Jeśli tak to postawić baze na replicie albo w pracy
+            b) Jeśli nie to zobaczyć czy jest metoda autoryzacyjna co daje stały PIN
+        2. Postawić bota na replicie
+        3. Poszukać manualnych testerów
+        4. Nauczyć się pisać testy D:
+        5. Dodawać stopniowo komendy zaczynajac od planu lekcji
+""" 
