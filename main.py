@@ -1,8 +1,7 @@
 import discord
 from discord.ext import commands
-import json
 import os
-import keys as k
+from keys import authorization as auth
 
 bot = commands.Bot(command_prefix="!", intents = discord.Intents.all()) 
 
@@ -22,4 +21,4 @@ async def on_ready():
     except Exception as e:
         print(f"Failed to sync commands: {e}")
 
-bot.run(k.secrets("bot_token"))
+bot.run(auth.secrets("bot_token"))

@@ -5,7 +5,9 @@ import oauth2 as oauth
 from urllib.parse import parse_qs
 import sys
 sys.path.append(".")
-import keys
+from keys import authorization as auth
+from Database import Operations
+from datetime import datetime
 
 class register(commands.Cog):
     def __init__(self, bot:commands.Bot):
@@ -13,7 +15,7 @@ class register(commands.Cog):
 
     @app_commands.command(name="register", description="Sign up to your usos")
     async def register(self,interaction: discord.Interaction):
-        consumer = oauth.Consumer(keys.secrets("consumer_key"), keys.secrets("CONSUMER_SECRET"))
+        consumer = oauth.Consumer(auth.secrets("consumer_key"), auth.secrets("CONSUMER_SECRET"))
         usosapi_base_url = 'https://appsusos.uek.krakow.pl/'
         request_token_url = usosapi_base_url + 'services/oauth/request_token?scopes=studies|offline_access&oauth_callback=oob'
         authorize_url = usosapi_base_url + 'services/oauth/authorize'
@@ -39,19 +41,30 @@ class register(commands.Cog):
         await interaction.user.send(embed=embed)
 
         pin = await self.bot.wait_for("message", timeout=30)
-        #await interaction.user.send(f"Twoj kod pin to: {pin.content}")
-        #await interaction.response.send_message(" Wejdź na stronę%s?oauth_token=%s" % (authorize_url, request_token.key))
-          
-
+        
+        request_token.set_verifier(pin.content)
+        client = oauth.Client(consumer, request_token)
+        resp, content = client.request(access_token_url, "GET")
+        try:
+            access_token = _read_token(content)
+            ope = Operations()
+            if not ope.registered(interaction.user.id):
+                ope.add_user(interaction.user.id, interaction.user.name, access_token, datetime.today())
+            else:
+                ope.modify_user(interaction.user.id, interaction.user.name, access_token)
+            await interaction.user.send("Zarejestrowano! Możesz teraz korzystać z pozostałych komend. Wpisz /help:all aby uzyskać listę dostępnych komend")
+        except KeyError:
+            await interaction.user.send("Nie udało się uzyskać Access Token. Upewnij się że wpisałeś prawidłowy PIN")
+        
 async def setup(bot):
     await bot.add_cog(register(bot))
 
 """
         TODO:
-        1. Ogarnąć czy pin jest stały
-            a) Jeśli tak to postawić baze na replicie albo w pracy
-            b) Jeśli nie to zobaczyć czy jest metoda autoryzacyjna co daje stały PIN
-        2. Postawić bota na replicie
+        1. [DONE] Ogarnąć czy pin jest stały
+            a) Jeśli tak to postawić baze na replicie albo w pracy --> DONE
+            b) Jeśli nie to zobaczyć czy jest metoda autoryzacyjna co daje stały PIN --> Scope offline_access pozwala na to aby uzyskać stały token
+        2. Postawić bota na replicie [ALMOST DONE]
         3. Poszukać manualnych testerów
         4. Nauczyć się pisać testy D:
         5. Dodawać stopniowo komendy zaczynajac od planu lekcji
