@@ -5,8 +5,8 @@ import oauth2 as oauth
 from urllib.parse import parse_qs
 import sys
 sys.path.append(".")
-from keys import authorization as auth
-from Database import Operations
+import keys
+from database import operations
 from datetime import datetime
 
 class register(commands.Cog):
@@ -15,7 +15,7 @@ class register(commands.Cog):
 
     @app_commands.command(name="register", description="Sign up to your usos")
     async def register(self,interaction: discord.Interaction):
-        consumer = oauth.Consumer(auth.secrets("consumer_key"), auth.secrets("CONSUMER_SECRET"))
+        consumer = oauth.Consumer(keys.secrets("consumer_key"), keys.secrets("CONSUMER_SECRET"))
         usosapi_base_url = 'https://appsusos.uek.krakow.pl/'
         request_token_url = usosapi_base_url + 'services/oauth/request_token?scopes=studies|offline_access&oauth_callback=oob'
         authorize_url = usosapi_base_url + 'services/oauth/authorize'
@@ -40,18 +40,19 @@ class register(commands.Cog):
         embed.add_field(name="3. Skopiuj PIN, który ci się wyświetli i wklej go w odpowiedzi poniżej", value="", inline=False)
         await interaction.user.send(embed=embed)
 
-        pin = await self.bot.wait_for("message", timeout=30)
+        pin = await self.bot.wait_for("message", timeout=60)
         
         request_token.set_verifier(pin.content)
         client = oauth.Client(consumer, request_token)
         resp, content = client.request(access_token_url, "GET")
         try:
             access_token = _read_token(content)
-            ope = Operations()
+            print(access_token)
+            ope = operations()
             if not ope.registered(interaction.user.id):
                 ope.add_user(interaction.user.id, interaction.user.name, access_token, datetime.today())
             else:
-                ope.modify_user(interaction.user.id, interaction.user.name, access_token)
+                ope.modify_user(interaction.user.id, interaction.user.name, access_token, datetime.today())
             await interaction.user.send("Zarejestrowano! Możesz teraz korzystać z pozostałych komend. Wpisz /help:all aby uzyskać listę dostępnych komend")
         except KeyError:
             await interaction.user.send("Nie udało się uzyskać Access Token. Upewnij się że wpisałeś prawidłowy PIN")
