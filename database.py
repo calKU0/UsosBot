@@ -1,15 +1,16 @@
 from replit import Database
 import json
+import keys
+import oauth2 as oauth
 
-class Operations:
+class operations:
     def __init__(self) -> None:
-        self.db = Database(db_url="https://kv.replit.com/v0/eyJhbGciOiJIUzUxMiIsImlzcyI6ImNvbm1hbiIsImtpZCI6InByb2Q6MSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJjb25tYW4iLCJleHAiOjE2OTAyMjM3NzUsImlhdCI6MTY5MDExMjE3NSwiZGF0YWJhc2VfaWQiOiJiY2ZiYTQwYS03ZTMxLTQ1MmEtYTBjMi03ZmE0ZTBiNDE5MjAiLCJ1c2VyIjoiS3J6eXN6dG9mS3Vyb3dzIiwic2x1ZyI6IlVzb3NCb3QifQ.gxntgwcqoL4n_hxWoFjmu6fBS_r_iE77DUgx_ZXfTa8UOBogHzsfHm9RwRLf_12pmEss8SflvhLtYOWxBqyVRw")
+        self.db = Database(db_url=keys.secrets("database"))
+        print(self.db["Users"])
         
     def registered(self, user_id):
-        for user in self.db["Users"]:
-            if user.get("user_id") == user_id:
-                return True
-        return False
+        parsed_list = [json.loads(item) if isinstance(item, str) else item for item in self.db["Users"]]
+        return any(entry.get('user_id') == user_id for entry in parsed_list)
 
     def add_user(self, user_id, name, access_token, registration_date):
         max_id = max(user.get("GID", 1) for user in self.db.get("Users", []))
@@ -24,24 +25,32 @@ class Operations:
         self.db["Users"].append(serialized_data)
         
     def modify_user(self, user_id, name=None, access_token=None, registration_date=None):
-        for user in self.db.get("Users", []):
-            user_dict = json.loads(user)
-            if user_dict.get("user_id") == user_id:
-                user_to_modify = user_dict
+        parsed_list = [json.loads(item) if isinstance(item, str) else item for item in self.db["Users"]]
+        for entry in parsed_list:
+            if 'user_id' in entry and entry['user_id'] == user_id:
+                entry['name'] = name
+                entry['access_token'] = access_token
+                entry['registration_date'] = registration_date.strftime('%Y-%m-%d %H:%M:%S')
                 break
-
-        if name is not None:
-            user_to_modify["name"] = name
-        if access_token is not None:
-            user_to_modify["access_token"] = str(access_token)
-        if registration_date is not None:
-            user_to_modify["registration_date"] = registration_date.strftime('%Y-%m-%d %H:%M:%S')
-
-        serialized_user = json.dumps(user_to_modify)
-        for i, user in enumerate(self.db["Users"]):
-            if json.loads(user)["user_id"] == user_id:
-                self.db["Users"][i] = serialized_user
-                break
-
-        return True
+    
+    def select(self, user_id, key):
+        parsed_list = [json.loads(item) if isinstance(item, str) else item for item in self.db["Users"]]
+        for entry in parsed_list:
+            if "user_id" in entry and entry["user_id"] == user_id:
+                if key != "access_token":
+                    return entry[f"{key}"]
+                else:
+                    token_parts = entry["access_token"].split('&')
+                    for part in token_parts:
+                        if part.startswith('oauth_token='):
+                            oauth_token = part[len('oauth_token='):]
+                        elif part.startswith('oauth_token_secret='):
+                            oauth_token_secret = part[len('oauth_token_secret='):]
+                    return oauth_token, oauth_token_secret
+        return None
+            
+    def consumer(self):
+        return oauth.Consumer(keys.secrets("consumer_key"), keys.secrets("CONSUMER_SECRET"))
+    
+    
             
