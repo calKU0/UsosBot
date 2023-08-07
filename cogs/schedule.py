@@ -13,13 +13,13 @@ import json
 class schedule(commands.Cog):
     def __init__(self, bot:commands.Bot):
          self.bot = bot
-         self.usosapi_base_url = 'https://appsusos.uek.krakow.pl/'
          
     @app_commands.command(name="schedule", description="Get your today's schedule")
     async def schedule(self,interaction: discord.Interaction):  
         ope = operations()
         if not ope.registered(interaction.user.id):
-            await interaction.user.send("Nie jesteś zarejestrowany. Wpisz /register , aby się zarejestrować")
+            await interaction.response.send_message("Nie jesteś zarejestrowany. Wpisz /register , aby się zarejestrować")
+            return
             
         select = Select(placeholder="Wybierz zakres planu", options=[
             discord.SelectOption(label = "Dziś", description = "Dzisiejsze zajęcia"),
@@ -31,6 +31,7 @@ class schedule(commands.Cog):
         await interaction.response.send_message(view=view)
         
         async def my_callback(interaction: discord.Interaction):
+            usosapi_base_url = ope.select(interaction.user.id, "endpoint")
             access_token_key, access_token_secret = ope.select(interaction.user.id, "access_token")
             access_token = oauth.Token(access_token_key, access_token_secret)
             client = oauth.Client(ope.consumer(), access_token)
@@ -44,7 +45,7 @@ class schedule(commands.Cog):
             if select.values[0] == "Tydzień":
                 start = today - timedelta(days=today.weekday())
                 days = "7"
-            resp, content = client.request(self.usosapi_base_url + f"services/tt/student?start={start}&days={days}", "GET")
+            resp, content = client.request(usosapi_base_url + f"services/tt/student?start={start}&days={days}", "GET")
             if resp['status'] != '200':
                 await interaction.response.send_message("Ups. Coś poszło nie tak. Spróbuj ponownie się zarejestrować")
             items = json.loads(content)
