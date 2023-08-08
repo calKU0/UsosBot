@@ -12,24 +12,39 @@ class operations:
         parsed_list = [json.loads(item) if isinstance(item, str) else item for item in self.db["Users"]]
         return any(entry.get('user_id') == user_id for entry in parsed_list)
 
-    def add_user(self, user_id, name, access_token, registration_date):
+    def add_user(self, user_id, name, access_token, collage_name, endpoint, registration_date):
         max_id = max(user.get("GID", 1) for user in self.db.get("Users", []))
         new_user = {
             "GID": max_id + 1,
             "user_id": user_id, 
             "name": name,
             "access_token": str(access_token),
+            "college_name": str(collage_name),
+            "endpoint": str(endpoint),
             "registration_date": registration_date.strftime('%Y-%m-%d %H:%M:%S')
         }
         serialized_data = json.dumps(new_user)
         self.db["Users"].append(serialized_data)
         
-    def modify_user(self, user_id, name=None, access_token=None, registration_date=None):
+    '''def new_database(self):
+        self.db["Users"] = [{
+           "GID": 1,
+           "user_id": 1,
+           "name": "test",
+           "access_token": 1234,
+           "college_name": "test",
+           "endpoint": "test",
+           "registration_date":124
+        }]'''
+
+    def modify_user(self, user_id, name = None, access_token = None, collage_name = None, endpoint = None, registration_date = None):
         parsed_list = [json.loads(item) if isinstance(item, str) else item for item in self.db["Users"]]
         for entry in parsed_list:
             if 'user_id' in entry and entry['user_id'] == user_id:
                 entry['name'] = name
                 entry['access_token'] = access_token
+                entry['collage_name'] = collage_name
+                entry['endpoint'] = endpoint
                 entry['registration_date'] = registration_date.strftime('%Y-%m-%d %H:%M:%S')
                 break
     
